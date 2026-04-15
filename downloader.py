@@ -5,9 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
-from config import ACCOUNTS, DOWNLOAD_ROOT, LOGIN_URL
-from date_utils import iter_weekdays
-
+from config import ACCOUNTS, DOWNLOAD_ROOT, LOGIN_URL, DEFAULT_MARKET
+from trading_calendar.calendar import TradingCalendar
 
 def get_account_credentials(account_name: str) -> tuple[str, str, str]:
     """
@@ -43,11 +42,11 @@ def build_download_dir(account_name: str, trade_date: date) -> Path:
     return target_dir
 
 
-def format_download_filename(account_name: str, suggested_name: str) -> str:
+def format_download_filename(suggested_name: str) -> str:
     """
     统一生成下载文件名。
     """
-    return f"{account_name}_{suggested_name}"
+    return f"{suggested_name}"
 
 
 def login_once(page,username: str, password: str):
@@ -88,7 +87,6 @@ def query_and_download_one_date(page, account_name: str, trade_date: date) -> Pa
     download = download_info.value
 
     final_name = format_download_filename(
-        account_name=account_name,
         suggested_name=download.suggested_filename,
     )
     final_path = save_dir / final_name
@@ -103,7 +101,11 @@ def query_and_download_one_date(page, account_name: str, trade_date: date) -> Pa
     page.wait_for_timeout(800)
     return final_path
 
-def run_download_for_account_and_range(account_name: str, start_date: date, end_date: date):
+def run_download_for_account_and_range(
+        account_name: str, 
+        start_date: date, 
+        end_date: date,
+        market: str = DEFAULT_MARKET):
     """
     下载某个账户在一个日期区间内的日报。
     - 只登录一次
@@ -111,7 +113,8 @@ def run_download_for_account_and_range(account_name: str, start_date: date, end_
     """
     load_dotenv()
     username, password, display_name = get_account_credentials(account_name)
-    target_dates = list(iter_weekdays(start_date, end_date))
+    calendar = TradingCalendar(market)
+    target_dates = list(calendar.iter_trading_days(start_date, end_date))
 
     if not target_dates:
         print("指定区间内没有可下载的工作日。")

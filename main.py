@@ -1,7 +1,7 @@
 import argparse
 from datetime import date
 
-from config import DEFAULT_ACCOUNT
+from config import DEFAULT_ACCOUNT, ACCOUNTS
 from date_utils import parse_date_str, resolve_default_trade_date
 from downloader import run_download_for_account_and_range
 
@@ -9,9 +9,16 @@ def build_parser():
     parser = argparse.ArgumentParser(description="CFMMC 结算日报自动下载工具")
 
     parser.add_argument(
+        "--account",
+        type=str,
+        default=DEFAULT_ACCOUNT,
+        help=f"指定账户，例如 acc1 / acc2，默认为 {DEFAULT_ACCOUNT}"
+    )
+
+    parser.add_argument(
         "--date",
         type=str,
-        help="指定单个日期，例如 2026-04-10",
+        help="指定单个日期，例如 2026-04-10，优先级高于 --start/--end"
     )
 
     parser.add_argument(
@@ -43,12 +50,10 @@ def resolve_date_range(args) -> tuple[date, date]:
        -> 下载区间
     """
 
-    # 模式1：指定单日
     if args.date:
         target_date = parse_date_str(args.date)
         return target_date, target_date
     
-    # 模式2：指定区间
     if args.start and args.end:
         start_date = parse_date_str(args.start)
         end_date = parse_date_str(args.end)
@@ -56,7 +61,6 @@ def resolve_date_range(args) -> tuple[date, date]:
             raise ValueError("开始日期不能晚于结束日期")
         return start_date, end_date
 
-    # 模式3：默认日期
     default_date = resolve_default_trade_date()
     return default_date, default_date
 
@@ -64,7 +68,12 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
-    account_name = DEFAULT_ACCOUNT
+    if args.account not in ACCOUNTS:
+        raise ValueError(
+            f"账户 {args.account} 不存在，可选账户:{','.join(ACCOUNTS.keys())}"
+            )
+    
+    account_name = args.account
     start_date, end_date = resolve_date_range(args)
 
     run_download_for_account_and_range(

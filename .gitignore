@@ -1,6 +1,7 @@
 .env
 downloads/
-data/
 logs/
 __pycache__/
 *.pyc
+.vscode/
+config.py
